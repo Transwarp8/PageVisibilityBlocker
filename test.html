@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Page Visibility Blocker - Test Suite</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 32px;
+      background: #f5f5f5;
+      color: #333;
+    }
+    h1 { margin-bottom: 8px; }
+    .subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 800px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th { background: #fafafa; font-weight: 600; font-size: 13px; text-transform: uppercase; color: #666; }
+    td:first-child { font-family: "Cascadia Code", "Fira Code", monospace; font-size: 13px; }
+    .pass { color: #2e7d32; font-weight: 600; }
+    .fail { color: #c62828; font-weight: 600; }
+    .pending { color: #e65100; font-weight: 600; }
+    .note { color: #666; font-size: 12px; font-style: italic; }
+    .summary {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      max-width: 800px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .summary.all-pass { background: #e8f5e9; color: #2e7d32; }
+    .summary.has-fail { background: #ffebee; color: #c62828; }
+    .summary.waiting { background: #fff3e0; color: #e65100; }
+  </style>
+</head>
+<body>
+  <h1>Page Visibility Blocker — Test Suite</h1>
+  <p class="subtitle">Switch to another tab and back to complete all tests. Results update automatically.</p>
+
+  <table>
+    <thead>
+      <tr><th>Test</th><th>Result</th><th>Notes</th></tr>
+    </thead>
+    <tbody id="results"></tbody>
+  </table>
+
+  <div id="summary" class="summary waiting">Waiting for tab-switch tests...</div>
+
+  <script>
+    /* ===== Test Definitions ===== */
+    var tests = {};
+    var tabSwitched = false;
+
+    function setTest(name, passed, notes) {
+      tests[name] = { passed: passed, notes: notes || '' };
+    }
+
+    function setPending(name, notes) {
+      tests[name] = { passed: null, notes: notes || 'Switch tabs to complete' };
+    }
+
+    /* ---- 1. document.hidden ---- */
+    setTest('document.hidden === false', document.hidden === false,
+      'Got: ' + JSON.stringify(document.hidden));
+
+    /* ---- 2. document.visibilityState ---- */
+    setTest('document.visibilityState === "visible"', document.visibilityState === 'visible',
+      'Got: ' + JSON.stringify(document.visibilityState));
+
+    /* ---- 3. Document.prototype.hidden bypass ---- */
+    (function() {
+      try {
+        var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+        var val = desc.get.call(document);
+        setTest('Document.prototype.hidden bypass blocked', val === false,
+          'Prototype getter returned: ' + JSON.stringify(val));
+      } catch(e) {
+        setTest('Document.prototype.hidden bypass blocked', true, 'Error: ' + e.message);
+      }
+    })();
+
+    /* ---- 4. Document.prototype.visibilityState bypass ---- */
+    (function() {
+      try {
+        var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+        var val = desc.get.call(document);
+        setTest('Document.prototype.visibilityState bypass blocked', val === 'visible',
+          'Prototype getter returned: ' + JSON.stringify(val));
+      } catch(e) {
+        setTest('Document.prototype.visibilityState bypass blocked', true, 'Error: ' + e.message);
+      }
+    })();
+
+    /* ---- 5. addEventListener('visibilitychange') blocked ---- */
+    var visChangeEventFired = false;
+    document.addEventListener('visibilitychange', function() {
+      visChangeEventFired = true;
+      render();
+    });
+    setPending('addEventListener visibilitychange blocked');
+
+    /* ---- 6. document.onvisibilitychange blocked ---- */
+    var onVisChangeCalled = false;
+    document.onvisibilitychange = function() {
+      onVisChangeCalled = true;
+      render();
+    };
+    /* Verify the setter stored our handler (returns it back) */
+    var onVisChangeStored = typeof document.onvisibilitychange === 'function';
+    setTest('document.onvisibilitychange setter/getter works', onVisChangeStored,
+      'Getter returned: ' + typeof document.onvisibilitychange);
+    setPending('document.onvisibilitychange handler blocked');
+
+    /* ---- 7. document.hasFocus() ---- */
+    setTest('document.hasFocus() === true', document.hasFocus() === true,
+      'Got: ' + JSON.stringify(document.hasFocus()));
+
+    /* ---- 8. window blur event blocked ---- */
+    var windowBlurFired = false;
+    window.addEventListener('blur', function() {
+      windowBlurFired = true;
+      render();
+    });
+    setPending('window blur event blocked');
+
+    /* ---- 9. window focus event blocked ---- */
+    var windowFocusFired = false;
+    window.addEventListener('focus', function() {
+      windowFocusFired = true;
+      render();
+    });
+    setPending('window focus event blocked');
+
+    /* ---- 10. window.onblur blocked ---- */
+    var onBlurCalled = false;
+    window.onblur = function() {
+      onBlurCalled = true;
+      render();
+    };
+    var onBlurStored = typeof window.onblur === 'function';
+    setTest('window.onblur setter/getter works', onBlurStored,
+      'Getter returned: ' + typeof window.onblur);
+    setPending('window.onblur handler blocked');
+
+    /* ---- 11. window.onfocus blocked ---- */
+    var onFocusCalled = false;
+    window.onfocus = function() {
+      onFocusCalled = true;
+      render();
+    };
+    var onFocusStored = typeof window.onfocus === 'function';
+    setTest('window.onfocus setter/getter works', onFocusStored,
+      'Getter returned: ' + typeof window.onfocus);
+    setPending('window.onfocus handler blocked');
+
+    /* ---- 12. Old meta tag NOT present ---- */
+    var oldMeta = document.querySelector('meta[name="__pageVisibilityBlockerEnabled"]');
+    setTest('Old meta tag not present', oldMeta === null,
+      oldMeta ? 'FOUND — fingerprinting risk' : 'Not found');
+
+    /* ---- 13. removeEventListener for blocked listener ---- */
+    (function() {
+      var handler = function() {};
+      document.addEventListener('visibilitychange', handler);
+      /* This should not throw — the blocked listener should be tracked */
+      try {
+        document.removeEventListener('visibilitychange', handler);
+        setTest('removeEventListener for blocked listener', true, 'No error thrown');
+      } catch(e) {
+        setTest('removeEventListener for blocked listener', false, 'Error: ' + e.message);
+      }
+    })();
+
+    /* ===== Rendering ===== */
+    function render() {
+      /* Update pending tests after tab switch */
+      if (tabSwitched) {
+        setTest('addEventListener visibilitychange blocked', !visChangeEventFired,
+          visChangeEventFired ? 'Event FIRED' : 'Event suppressed');
+        setTest('document.onvisibilitychange handler blocked', !onVisChangeCalled,
+          onVisChangeCalled ? 'Handler CALLED' : 'Handler suppressed');
+        setTest('window blur event blocked', !windowBlurFired,
+          windowBlurFired ? 'Event FIRED' : 'Event suppressed');
+        setTest('window focus event blocked', !windowFocusFired,
+          windowFocusFired ? 'Event FIRED' : 'Event suppressed');
+        setTest('window.onblur handler blocked', !onBlurCalled,
+          onBlurCalled ? 'Handler CALLED' : 'Handler suppressed');
+        setTest('window.onfocus handler blocked', !onFocusCalled,
+          onFocusCalled ? 'Handler CALLED' : 'Handler suppressed');
+      }
+
+      /* Re-check live values */
+      setTest('document.hidden === false (live)', document.hidden === false,
+        'Got: ' + JSON.stringify(document.hidden));
+      setTest('document.visibilityState === "visible" (live)', document.visibilityState === 'visible',
+        'Got: ' + JSON.stringify(document.visibilityState));
+      setTest('document.hasFocus() === true (live)', document.hasFocus() === true,
+        'Got: ' + JSON.stringify(document.hasFocus()));
+
+      /* Build table */
+      var tbody = document.getElementById('results');
+      var html = '';
+      var allPassed = true;
+      var hasPending = false;
+      var keys = Object.keys(tests);
+      for (var i = 0; i < keys.length; i++) {
+        var name = keys[i];
+        var t = tests[name];
+        var cls, label;
+        if (t.passed === null) {
+          cls = 'pending'; label = 'PENDING'; hasPending = true;
+        } else if (t.passed) {
+          cls = 'pass'; label = 'PASS';
+        } else {
+          cls = 'fail'; label = 'FAIL'; allPassed = false;
+        }
+        html += '<tr><td>' + name + '</td>';
+        html += '<td class="' + cls + '">' + label + '</td>';
+        html += '<td class="note">' + t.notes + '</td></tr>';
+      }
+      tbody.innerHTML = html;
+
+      /* Summary */
+      var summary = document.getElementById('summary');
+      if (hasPending) {
+        summary.className = 'summary waiting';
+        summary.textContent = 'Waiting — switch to another tab and back to complete all tests';
+      } else if (allPassed) {
+        summary.className = 'summary all-pass';
+        summary.textContent = 'ALL TESTS PASSED (' + keys.length + '/' + keys.length + ')';
+      } else {
+        var passCount = 0;
+        for (var j = 0; j < keys.length; j++) {
+          if (tests[keys[j]].passed) passCount++;
+        }
+        summary.className = 'summary has-fail';
+        summary.textContent = 'SOME TESTS FAILED (' + passCount + '/' + keys.length + ' passed)';
+      }
+    }
+
+    /* Detect tab switch using a non-blocked mechanism (setTimeout timing) */
+    var lastTime = Date.now();
+    setInterval(function() {
+      var now = Date.now();
+      /* A gap > 200ms suggests the tab was backgrounded */
+      if (now - lastTime > 200 && !tabSwitched) {
+        tabSwitched = true;
+      }
+      lastTime = now;
+      render();
+    }, 100);
+
+    /* Initial render */
+    render();
+  </script>
+</body>
+</html>
