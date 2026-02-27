@@ -46,12 +46,6 @@ When enabled, the extension blocks all known visibility detection vectors:
 - `test.html` - Test suite to verify all blocking vectors
 - `Icon.png` - Extension icon
 
-## Testing
-
-1. Load the extension in Chrome
-2. Open `test.html` in a new tab (serve it via a local web server, or enable "Allow access to file URLs" in the extension settings)
-3. Switch to another tab and back
-4. All tests should show PASS (green)
 
 ## Limitations
 
@@ -59,3 +53,4 @@ When enabled, the extension blocks all known visibility detection vectors:
 - Page Lifecycle API events (`freeze`/`resume`) are not currently blocked
 - Blocking may cause pages to continue resource-intensive operations when hidden
 - Pages must be reloaded after changing the enabled/disabled state
+
