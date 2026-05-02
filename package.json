@@ -1,0 +1,25 @@
+{
+  "name": "pagevisibilityblocker",
+  "version": "1.0.0",
+  "description": "Chrome extension that blocks the Page Visibility API and related focus/blur detection vectors to reduce websites' ability to detect when the page is hidden or minimized.",
+  "main": "background.js",
+  "private": true,
+  "scripts": {
+    "test:integration": "node scripts/integration-test.js",
+    "package:extension": "python scripts/package-extension.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Transwarp8/PageVisibilityBlocker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Transwarp8/PageVisibilityBlocker/issues"
+  },
+  "homepage": "https://github.com/Transwarp8/PageVisibilityBlocker#readme",
+  "devDependencies": {
+    "puppeteer-core": "^24.10.2"
+  }
+}

@@ -80,7 +80,17 @@
     setTest('document.visibilityState === "visible"', document.visibilityState === 'visible',
       'Got: ' + JSON.stringify(document.visibilityState));
 
-    /* ---- 3. Document.prototype.hidden bypass ---- */
+    /* ---- 3. prefixed visibility aliases ---- */
+    if ('webkitHidden' in document) {
+      setTest('document.webkitHidden === false', document.webkitHidden === false,
+        'Got: ' + JSON.stringify(document.webkitHidden));
+    }
+    if ('webkitVisibilityState' in document) {
+      setTest('document.webkitVisibilityState === "visible"', document.webkitVisibilityState === 'visible',
+        'Got: ' + JSON.stringify(document.webkitVisibilityState));
+    }
+
+    /* ---- 4. Document.prototype.hidden bypass ---- */
     (function() {
       try {
         var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
@@ -92,7 +102,7 @@
       }
     })();
 
-    /* ---- 4. Document.prototype.visibilityState bypass ---- */
+    /* ---- 5. Document.prototype.visibilityState bypass ---- */
     (function() {
       try {
         var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
@@ -104,7 +114,7 @@
       }
     })();
 
-    /* ---- 5. addEventListener('visibilitychange') blocked ---- */
+    /* ---- 6. addEventListener('visibilitychange') blocked ---- */
     var visChangeEventFired = false;
     document.addEventListener('visibilitychange', function() {
       visChangeEventFired = true;
@@ -112,7 +122,7 @@
     });
     setPending('addEventListener visibilitychange blocked');
 
-    /* ---- 6. document.onvisibilitychange blocked ---- */
+    /* ---- 7. document.onvisibilitychange blocked ---- */
     var onVisChangeCalled = false;
     document.onvisibilitychange = function() {
       onVisChangeCalled = true;
@@ -124,11 +134,25 @@
       'Getter returned: ' + typeof document.onvisibilitychange);
     setPending('document.onvisibilitychange handler blocked');
 
-    /* ---- 7. document.hasFocus() ---- */
+    /* ---- 8. window.onvisibilitychange blocked, if the browser exposes it ---- */
+    var windowHasOnVisibilityChange = 'onvisibilitychange' in window;
+    var onWindowVisChangeCalled = false;
+    if (windowHasOnVisibilityChange) {
+      window.onvisibilitychange = function() {
+        onWindowVisChangeCalled = true;
+        render();
+      };
+      var onWindowVisChangeStored = typeof window.onvisibilitychange === 'function';
+      setTest('window.onvisibilitychange setter/getter works', onWindowVisChangeStored,
+        'Getter returned: ' + typeof window.onvisibilitychange);
+      setPending('window.onvisibilitychange handler blocked');
+    }
+
+    /* ---- 9. document.hasFocus() ---- */
     setTest('document.hasFocus() === true', document.hasFocus() === true,
       'Got: ' + JSON.stringify(document.hasFocus()));
 
-    /* ---- 8. window blur event blocked ---- */
+    /* ---- 10. window blur event blocked ---- */
     var windowBlurFired = false;
     window.addEventListener('blur', function() {
       windowBlurFired = true;
@@ -136,7 +160,7 @@
     });
     setPending('window blur event blocked');
 
-    /* ---- 9. window focus event blocked ---- */
+    /* ---- 11. window focus event blocked ---- */
     var windowFocusFired = false;
     window.addEventListener('focus', function() {
       windowFocusFired = true;
@@ -144,7 +168,7 @@
     });
     setPending('window focus event blocked');
 
-    /* ---- 10. window.onblur blocked ---- */
+    /* ---- 12. window.onblur blocked ---- */
     var onBlurCalled = false;
     window.onblur = function() {
       onBlurCalled = true;
@@ -155,7 +179,7 @@
       'Getter returned: ' + typeof window.onblur);
     setPending('window.onblur handler blocked');
 
-    /* ---- 11. window.onfocus blocked ---- */
+    /* ---- 13. window.onfocus blocked ---- */
     var onFocusCalled = false;
     window.onfocus = function() {
       onFocusCalled = true;
@@ -166,16 +190,31 @@
       'Getter returned: ' + typeof window.onfocus);
     setPending('window.onfocus handler blocked');
 
-    /* ---- 12. Old meta tag NOT present ---- */
+    /* ---- 14. Old meta tag and DOM state flag NOT present ---- */
     var oldMeta = document.querySelector('meta[name="__pageVisibilityBlockerEnabled"]');
     setTest('Old meta tag not present', oldMeta === null,
       oldMeta ? 'FOUND — fingerprinting risk' : 'Not found');
+    var domStateFlag = document.documentElement.hasAttribute('data-pvb');
+    setTest('data-pvb DOM state flag not present', domStateFlag === false,
+      domStateFlag ? 'FOUND — page-visible/page-writable state' : 'Not found');
 
-    /* ---- 13. removeEventListener for blocked listener ---- */
+    /* ---- 15. custom visibilitychange events on non-document targets still work ---- */
+    (function() {
+      var target = new EventTarget();
+      var fired = false;
+      target.addEventListener('visibilitychange', function() {
+        fired = true;
+      });
+      target.dispatchEvent(new Event('visibilitychange'));
+      setTest('custom visibilitychange event unaffected', fired,
+        fired ? 'Custom EventTarget listener fired' : 'Custom EventTarget listener blocked');
+    })();
+
+    /* ---- 16. removeEventListener for blocked listener ---- */
     (function() {
       var handler = function() {};
       document.addEventListener('visibilitychange', handler);
-      /* This should not throw — the blocked listener should be tracked */
+      /* This should not throw — native removeEventListener semantics are no-op */
       try {
         document.removeEventListener('visibilitychange', handler);
         setTest('removeEventListener for blocked listener', true, 'No error thrown');
@@ -192,6 +231,10 @@
           visChangeEventFired ? 'Event FIRED' : 'Event suppressed');
         setTest('document.onvisibilitychange handler blocked', !onVisChangeCalled,
           onVisChangeCalled ? 'Handler CALLED' : 'Handler suppressed');
+        if (windowHasOnVisibilityChange) {
+          setTest('window.onvisibilitychange handler blocked', !onWindowVisChangeCalled,
+            onWindowVisChangeCalled ? 'Handler CALLED' : 'Handler suppressed');
+        }
         setTest('window blur event blocked', !windowBlurFired,
           windowBlurFired ? 'Event FIRED' : 'Event suppressed');
         setTest('window focus event blocked', !windowFocusFired,

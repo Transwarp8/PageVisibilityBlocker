@@ -1,10 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Page Visibility API Blocker",
-  "version": "1.2",
+  "version": "1.3",
   "description": "Blocks the Page Visibility API to prevent websites from detecting when the page is hidden",
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "icons": {
     "16": "icon-16.png",
@@ -21,28 +25,5 @@
   },
   "background": {
     "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "state_injector.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": true
-    },
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "blocker.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": true,
-      "world": "MAIN"
-    }
-  ]
+  }
 }

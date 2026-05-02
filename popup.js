@@ -9,9 +9,12 @@ const statusElement = document.getElementById('status');
 /**
  * Update UI based on current state
  */
-function updateUI(enabled) {
+function updateUI(enabled, message) {
   toggleSwitch.checked = enabled;
-  if (enabled) {
+  if (message) {
+    statusElement.textContent = message;
+    statusElement.className = 'status';
+  } else if (enabled) {
     statusElement.textContent = 'Blocking Enabled';
     statusElement.className = 'status enabled';
   } else {
@@ -20,22 +23,48 @@ function updateUI(enabled) {
   }
 }
 
+function setControlsDisabled(disabled) {
+  toggleSwitch.disabled = disabled;
+}
+
+function showError(previousEnabled, message) {
+  updateUI(previousEnabled, message || 'Failed to update');
+  statusElement.className = 'status disabled';
+}
+
 /**
- * Load current state from storage
+ * Load current state from the background service worker.
  */
-chrome.storage.local.get(['enabled'], function(result) {
-  const enabled = result.enabled !== false;
-  updateUI(enabled);
+chrome.runtime.sendMessage({ action: 'getState' }, function (response) {
+  if (chrome.runtime.lastError || !response) {
+    /* Safe fallback: storage defaults to enabled unless explicitly false. */
+    chrome.storage.local.get(['enabled'], function (result) {
+      updateUI(result.enabled !== false);
+    });
+    return;
+  }
+  updateUI(response.enabled !== false);
 });
 
 /**
- * Handle toggle switch changes
+ * Handle toggle switch changes.
  */
-toggleSwitch.addEventListener('change', function() {
+toggleSwitch.addEventListener('change', function () {
+  const previousEnabled = !toggleSwitch.checked;
   const enabled = toggleSwitch.checked;
-  chrome.storage.local.set({ enabled: enabled }, function() {
-    updateUI(enabled);
-    chrome.runtime.sendMessage({ action: 'stateChanged', enabled: enabled });
+
+  setControlsDisabled(true);
+  updateUI(enabled, 'Applying…');
+
+  chrome.runtime.sendMessage({ action: 'setState', enabled: enabled }, function (response) {
+    setControlsDisabled(false);
+
+    if (chrome.runtime.lastError || !response || response.ok !== true) {
+      const error = chrome.runtime.lastError ? chrome.runtime.lastError.message : response && response.error;
+      showError(previousEnabled, error || 'Failed to update');
+      return;
+    }
+
+    updateUI(response.enabled !== false);
   });
 });
-

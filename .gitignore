@@ -1,0 +1,12 @@
+# Node / tooling
+node_modules/
+
+# Local browser binaries used for automation
+chrome/
+
+# Generated artifacts
+artifacts/
+dist/
+
+# Pi local state
+.pi/
